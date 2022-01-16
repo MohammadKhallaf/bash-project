@@ -1,4 +1,4 @@
-#! bin/bash
+#! /bin/bash
 
 
 # Choosing an option ( Home page / Starting menu )
@@ -58,7 +58,7 @@ function dropDB {
 	      echo "$database removed ... Done"
 	else 
 	      echo "No matching name"	
-		esac
+		
 	fi	
 	      
 }
