@@ -16,11 +16,13 @@ do
 		listDB
         ;;
 	'Connect To DB')
-		echo $'\n'
+		echo $'These are the current database:\n'
+		listDB
 		connectDB
         ;;
 	'Drop DB')
-		echo $'\n'
+		echo $'These are the current database:\n'
+		listDB
 		dropDB
         ;;
 	'Exit')
@@ -118,11 +120,12 @@ function tablesOperation {
 			'Insert into Table')
 				insertRecord;;
 			'Select From Table')
+				listTable
 				selectRecord;;
 			'Delete From Table')
 				deleteRecord;;
 			'Update Table')
-				updateT;;
+				updateRecord;;
 			'Main Menu')
 				cd ../..
 				startView;;
@@ -163,7 +166,7 @@ function createTable {
 		flag="true"
 		for (( i=1; i<=$fields; i++ ))
 		do
-			echo "Please enter name for filed no.$i: "
+			echo "Please enter name for field no.$i: "
 			read colname
 			while [ $flag == "true" ]
 			do
@@ -184,9 +187,9 @@ function createTable {
 				read datatype
 				case $datatype in
 					int)
-					echo -n $colname"($datatype) " >> $table;;
+					echo -n $colname"($datatype);" >> $table;;
 					string)
-					echo -n $colname"($datatype) " >> $table;;
+					echo -n $colname"($datatype);" >> $table;;
 					*)
 					echo "Data type incorrect!"
 					continue;
@@ -236,7 +239,7 @@ function insertRecord {
 	if [[ -f $table ]]
 		then
 				
-				x=`grep 'PK' $table | wc -w`
+				x=`grep 'PK' $table | grep -o ";" | wc -l` # no of fields
 				
 				awk '{if (NR==1) {for(i=1;i<=NF;i++){printf "    |    "$i}{print "    |"}}}' $table
 				for((i=1;i <= x;i++)) 
@@ -252,7 +255,7 @@ function insertRecord {
 						(( i = $i - 1 ))
 					else	
 						echo -n $data";" >> $table
-				fi
+					fi
 				done	
 				echo $'\n' >> $table
 			echo "insert done into $table"
@@ -369,26 +372,71 @@ function deleteRecord {
 	read table
 	if [[ -f $table ]]
 	then
-		awk '{if (NR==1) {for(i=1;i<=NF;i++){printf "    |    "$i}{print "    |"}}}' $table
-		echo "Please enter field number to find value: "
-		read field
-		echo " Enter The Roll No which wii be deleted : "
-		read word
-		countResult=` cut -f$field -d";" $table | grep -c -i "$word" $table `
-		if [ $countResult -eq 0 ]
-		then
-			echo " no such roll no. exist in the file "
-		else
-			grep -v -w "$word" $table > temp
-			mv temp $table
-			echo " The data has been deleted"
-		fi
+	awk '{if (NR==1) {for(i=1;i<=NF;i++){printf "    |    "$i}{print "    |"}}}' $table
+			echo  "Enter Column name:"
+			read field
 
+			## get the field number
+			findex=$(awk 'BEGIN{FS=";"}{if(NR==1){for(i=1;i<=NF;i++){if($i=="'$field'") print i }}}' $table )
+			if [[ $findex == "" ]]
+			then
+				echo "Not Found"
+				tablesOperation
+			else
+				echo "Enter Value:"
+				read value
+				res=$(awk 'BEGIN{FS=";"}{if ($'$findex'=="'$value'") print $'$findex'}' $table 2>> /dev/null)
+
+				if [[ $res == "" ]]
+				then
+				echo "Value Not Found"
+				tablesOperation
+				else
+				# get the record number to be deleted
+				NR=$(awk 'BEGIN{FS=";"}{if ($'$findex'=="'$value'") print NR}' $table 2>> /dev/null)
+
+				sed -i ''$NR'd' $table 2>> /dev/null
+				echo "Row Deleted Successfully"
+				tablesOperation
+				fi
+			fi
 	else
 		echo "Table doesn't exist"
 	fi
 }
 
+function updateRecord {
+	echo "Enter Table Name:"
+	read table
+	awk '{if (NR==1) {for(i=1;i<=NF;i++){printf "    |    "$i}{print "    |"}}}' $table
+	echo "Enter Column name: "
+	read field
+	findex=$(awk 'BEGIN{FS=";"}{if(NR==1){for(i=1;i<=NF;i++){if($i=="'$field'") print i }}}' $table )
+	if [[ $findex == "" ]]
+	then
+		echo "Not Found"
+		tablesOperation
+	else
+		echo "Enter Value:"
+		read value
+		result=$(awk 'BEGIN{FS=";"}{if ($'$findex'=="'$value'") print $'$findex'}' $table 2>> /dev/null)
+		if [[ $result == "" ]]
+		then
+		echo "Value Not Found"
+		tablesOperation
+		else
+			echo "Enter new Value to set:"
+			read newValue
+			NR=$(awk 'BEGIN{FS=";"}{if ($'$findex' == "'$value'") print NR}' $table 2>> /dev/null)
+			echo $NR
+			oldValue=$(awk 'BEGIN{FS=";"}{if(NR=='$NR'){for(i=1;i<=NF;i++){if(i=='$findex') print $i}}}' $table 2>> /dev/null)
+			echo $oldValue
+			sed -i ''$NR's/'$oldValue'/'$newValue'/g' $table 2>> /dev/null
+			echo "Row Updated Successfully"
+			tablesOperation
+		fi
+	fi
+}
 
 
 function checkType {
