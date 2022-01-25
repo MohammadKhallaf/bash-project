@@ -444,7 +444,8 @@ function updateRecord {
 # checktype fieldno. data_for_that_field
 function checkType {
 	datatype=`grep PK $table | cut -f$1 -d";"`
-	
+
+	# colname(int) => get in the () only
 	if [[ "$datatype" == *"int"* ]]
 	then
 		num='^[0-9]+$'
@@ -467,6 +468,8 @@ function checkType {
 		fi
 	fi
 }
+
+# checkPrimaryKeyExistance fieldno. data_for_that_field
 
 function checkPK {
 header=`grep PK $table | cut -f$1 -d";"`
