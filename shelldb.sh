@@ -86,7 +86,7 @@ function connectDB {
 	then 
 	       cd ./mydb/$database 2> /dev/null
 	       echo 'Connected to' $database
-			tablesOperation
+		tablesOperation
 	else 
 		echo "no database with $database name"
 		echo $'\nDo you want to create it? [y/n]\n'
@@ -145,8 +145,6 @@ function tablesOperation {
 function createTable {
 	echo $'Please enter table name to create it: \n'
 	read table
-
-	#TODO: validate only one input at a time
 	
 	if [[ -f $table ]]
 	then 
@@ -163,11 +161,13 @@ function createTable {
 	num='^[0-9]+$'
 	if  [[ $fields =~ $num ]]
 	then 
+		# PK flag
 		flag="true"
 		for (( i=1; i<=$fields; i++ ))
 		do
 			echo "Please enter name for field no.$i: "
 			read colname
+			# <------set PK------>
 			while [ $flag == "true" ]
 			do
 				echo "Is this a PK? [Y/N]"
@@ -180,7 +180,8 @@ function createTable {
 					break
 				fi
 			done
-
+			
+			# <------set col data type------>
 			while true
 			do 
 				echo "Choose data type from (int , string)"
@@ -197,21 +198,21 @@ function createTable {
 				break
 				
 			done
-
-			
+	
 		done
-		echo $'\n' >> $table
+		
+		echo $'\n' >> $table #end of table header
 		echo "Your table $table created"
 		tablesOperation
 	else
-		echo "$fields is not a number"
+		echo "$fields is not a valid input (numbers only)"
 		sleep 2
 		createTable
 	fi	
 }
 
 
-#A similar fn to list files(tables)
+#A similar fn to list files(tables) "each in a line"
 function listTable {
 	echo $'your current tables are:\n'
 	ls -1
@@ -222,6 +223,7 @@ function dropTable {
 	listTable
 	echo $'Table name to be deleted:\t'
 	read tablename
+	
 	if [[ -f $tablename ]]
 	then 
 		rm $tablename
@@ -232,32 +234,32 @@ function dropTable {
 	fi
 }
 
+
 function insertRecord {
 	listTable
 	echo "Please enter table name to insert data: "
 	read table
+	
 	if [[ -f $table ]]
 		then
-				
-				x=`grep 'PK' $table | grep -o ";" | wc -l` # no of fields
-				
-				awk '{if (NR==1) {for(i=1;i<=NF;i++){printf "    |    "$i}{print "    |"}}}' $table
-				for((i=1;i <= x;i++)) 
-				do      
-					columnName=`grep PK $table | cut -f$i -d";"`
-					echo $'\n'
-					echo $"Please enter data for field no.$i [$columnName]"
-					read data 
-					checkType $i $data
+			x=`grep 'PK' $table | grep -o ";" | wc -l` # no of fields
+			
+			for ((i=1;i <= x;i++)) 
+			do      
+				columnName=`grep PK $table | cut -f$i -d";"`
+				echo $'\n'
+				echo $"Please enter data for field no.$i [$columnName]"
+				read data 
+				checkType $i $data
 
-					if [[ $? != 0 ]]
-					then
-						(( i = $i - 1 ))
-					else	
-						echo -n $data";" >> $table
-					fi
-				done	
-				echo $'\n' >> $table
+				if [[ $? != 0 ]]
+				then
+					(( i = $i - 1 ))
+				else	
+					echo -n $data";" >> $table
+				fi
+			done	
+			echo $'\n' >> $table #end of record
 			echo "insert done into $table"
 		else
 			echo "Table doesn't exist"
@@ -285,43 +287,45 @@ function selectRecord {
 	if [[ -f $table ]]
 	then
 		echo $'\n'
-			awk '{if (NR==1) {for(i=1;i<=NF;i++){printf "    |    "$i}{print "    |"}}}' $table
+			awk 'BEGIN{FS=";"}{if (NR==1) {for(i=1;i<=NF;i++){printf "--|--"$i}{print "--|"}}}' $table
 			echo $'\nWould you like to print all records? [y/n]'
 			read printall
 			if [[ $printall == "Y" || $printall == "y" || $printall == "yes" ]]
 			then
 				echo $'\nWould you like to print a specific field? [y/n]'
-			read cut1
-			if [[ $cut1 == "Y" || $cut1 == "y" || $cut1 == "yes" ]]
-			then
-				echo $'\nPlease specify field number: '
-				read field1
-				echo $'<====================>'
-				awk $'{print $0\n}' $table | cut -f$field1 -d";"
-				echo $'<====================>'
+				read cut1
+				if [[ $cut1 == "Y" || $cut1 == "y" || $cut1 == "yes" ]]
+				then
+					echo $'\nPlease specify field number: '
+					read fieldno
+					echo $'<====================>'
+					awk $'{print $0\n}' $table | cut -f$fieldno -d";"
+					echo $'<====================>'
+				else
+					echo $'\n'
+					echo $'<====================>'
+					column -t -s ';' $table
+					echo $'<====================>\n'
+				fi
 			else
-				echo $'\n'
-				echo $'<====================>'
-				column -t -s ';' $table
-				echo $'<====================>\n'
-			fi
-			else
-			echo $'\nPlease enter a search value to select record(s): '
-			read value
-			echo $'\nWould you like to print a specific field? [y/n]'
-			read cut
-			if [[ $cut == "Y" || $cut == "y" || $cut == "yes" ]]
-			then
-				echo $'\nPlease specify field number: '
-				read field
-				echo $'<====================>\n'
-				awk -v pat=$value $'$0~pat{print $0\n}' $table | cut -f$field -d";"
-				
-			else
-				echo echo $'<====================>\n'
-				awk -v pat=$value '$0~pat{print $0}' $table | column -t -s ';'
+				echo $'\nPlease enter a search value to select record(s): '
+				read value
+				echo $'\nWould you like to print a specific field? [y/n]'
+				read cut
+				if [[ $cut == "Y" || $cut == "y" || $cut == "yes" ]]
+				then
+					echo $'\nPlease specify field number: '
+					read field
+					echo $'<====================>\n'
+					# find the pattern in records |> for that specific field
+					awk -v pat=$value $'$0~pat{print $0\n}' $table | cut -f$field -d";"
 					
-			fi
+				else
+					echo echo $'<====================>\n'
+					# find the pattern in records |> for all fields |> as a table display 
+					awk -v pat=$value '$0~pat{print $0}' $table | column -t -s ';'
+						
+				fi
 		fi
 		echo $'\nWould you like to make another query? [y/n]'
 		read answer
@@ -335,6 +339,7 @@ function selectRecord {
 			cd ../..
 			connectDB
 		else
+			echo $'Invalid choice\n'
 			echo "Redirecting to main menu.."
 			cd ../..
 			sleep 2
@@ -358,21 +363,19 @@ function selectRecord {
 	fi
 }
 
+
 # Delete Record steps
 # 1. list all records => PK
 # 2. check PK to delete its record
 # [ file => copyFile 		]
 # | clear file				|
 # [ copyFile =Filter=> file	]
-
-
-
 function deleteRecord {
 	echo "Please enter table name to delete from: "
 	read table
 	if [[ -f $table ]]
 	then
-	awk '{if (NR==1) {for(i=1;i<=NF;i++){printf "    |    "$i}{print "    |"}}}' $table
+			awk 'BEGIN{FS=";"}{if (NR==1) {for(i=1;i<=NF;i++){printf "--|--"$i}{print "--|"}}}' $table
 			echo  "Enter Column name:"
 			read field
 
@@ -389,15 +392,15 @@ function deleteRecord {
 
 				if [[ $res == "" ]]
 				then
-				echo "Value Not Found"
-				tablesOperation
+					echo "Value Not Found"
+					tablesOperation
 				else
-				# get the record number to be deleted
-				NR=$(awk 'BEGIN{FS=";"}{if ($'$findex'=="'$value'") print NR}' $table 2>> /dev/null)
+					# get the record number to be deleted
+					NR=$(awk 'BEGIN{FS=";"}{if ($'$findex'=="'$value'") print NR}' $table 2>> /dev/null)
 
-				sed -i ''$NR'd' $table 2>> /dev/null
-				echo "Row Deleted Successfully"
-				tablesOperation
+					sed -i ''$NR'd' $table 2>> /dev/null
+					echo "Row Deleted Successfully"
+					tablesOperation
 				fi
 			fi
 	else
@@ -408,7 +411,7 @@ function deleteRecord {
 function updateRecord {
 	echo "Enter Table Name:"
 	read table
-	awk '{if (NR==1) {for(i=1;i<=NF;i++){printf "    |    "$i}{print "    |"}}}' $table
+	awk 'BEGIN{FS=";"}{if (NR==1) {for(i=1;i<=NF;i++){printf "--|--"$i}{print "--|"}}}' $table
 	echo "Enter Column name: "
 	read field
 	findex=$(awk 'BEGIN{FS=";"}{if(NR==1){for(i=1;i<=NF;i++){if($i=="'$field'") print i }}}' $table )
@@ -438,30 +441,31 @@ function updateRecord {
 	fi
 }
 
-
+# checktype fieldno. data_for_that_field
 function checkType {
-datatype=`grep PK $table | cut -f$1 -d";"`
-if [[ "$datatype" == *"int"* ]]
-then
-	num='^[0-9]+$'
-	if ! [[ $2 =~ $num ]]
+	datatype=`grep PK $table | cut -f$1 -d";"`
+	
+	if [[ "$datatype" == *"int"* ]]
 	then
-		echo "False input: Not a number!"
-		return 1
-	else
-		checkPK $1 $2
-	fi
-elif [[ "$datatype" == *"string"* ]]
-then
-	str='^[a-zA-Z]+$'
-	if ! [[ $2 =~ $str ]]
+		num='^[0-9]+$'
+		if ! [[ $2 =~ $num ]]
+		then
+			echo "False input: Not a number!"
+			return 1
+		else
+			checkPK $1 $2
+		fi
+	elif [[ "$datatype" == *"string"* ]]
 	then
-		echo "False input: Not a valid string!"
-		return 1
-	else
-		checkPK $1 $2
+		str='^[a-zA-Z]+$'
+		if ! [[ $2 =~ $str ]]
+		then
+			echo "False input: Not a valid string!"
+			return 1
+		else
+			checkPK $1 $2
+		fi
 	fi
-fi
 }
 
 function checkPK {
